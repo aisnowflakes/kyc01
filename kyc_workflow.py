@@ -1,27 +1,14 @@
 from typing import Dict, List, TypedDict
-from langgraph.graph import Graph
+from langgraph.graph import StateGraph, END
+from my_agent.utils.nodes import call_model, should_continue, tool_node
+from my_agent.utils.state import AgentState
 from openai import OpenAI
-from langgraph.store import LocalStateStore, RedisStateStore
 import os
 import json
+import getpass
 
 # Initialize OpenAI client
 client = OpenAI()
-
-# Configure state store based on environment
-def get_state_store():
-    store_type = os.getenv("LANGGRAPH_STORE", "local").lower()
-    
-    if store_type == "redis":
-        redis_url = os.getenv("REDIS_URL")
-        if redis_url:
-            return RedisStateStore(redis_url=redis_url)
-    
-    # Default to LocalStateStore if no specific configuration or if local is specified
-    return LocalStateStore()
-
-# Initialize state store
-STATE_STORE = get_state_store()
 
 # Hardcoded user database
 USER_DATABASE = {
@@ -125,12 +112,9 @@ def eligibility_agent(state: KYCState) -> KYCState:
     return state
 
 # Create the workflow
-def create_kyc_workflow() -> Graph:
-    try:
-        workflow = Graph(state_store=STATE_STORE)
-    except Exception:
-        # Fallback to creating graph without explicit state store
-        workflow = Graph()
+def create_kyc_workflow() -> StateGraph:
+    # Create graph without explicit state store
+    workflow = StateGraph()
     
     # Add nodes
     workflow.add_node("supervisor", supervisor_agent)
@@ -140,7 +124,7 @@ def create_kyc_workflow() -> Graph:
     # Define the edges with conditional routing
     def route_from_supervisor(state):
         if "supervisor_message" in state:
-            return "end"
+            return END
         if "document_status" not in state:
             return "document_analysis"
         if state["document_status"] == "OKAY" and "eligibility_status" not in state:
