@@ -1,15 +1,27 @@
 from typing import Dict, List, TypedDict
 from langgraph.graph import Graph
 from openai import OpenAI
-from langgraph.store import LocalStateStore
+from langgraph.store import LocalStateStore, RedisStateStore
 import os
 import json
 
 # Initialize OpenAI client
 client = OpenAI()
 
-# Add state store configuration
-STATE_STORE = LocalStateStore()
+# Configure state store based on environment
+def get_state_store():
+    store_type = os.getenv("LANGGRAPH_STORE", "local").lower()
+    
+    if store_type == "redis":
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            return RedisStateStore(redis_url=redis_url)
+    
+    # Default to LocalStateStore if no specific configuration or if local is specified
+    return LocalStateStore()
+
+# Initialize state store
+STATE_STORE = get_state_store()
 
 # Hardcoded user database
 USER_DATABASE = {
@@ -114,8 +126,12 @@ def eligibility_agent(state: KYCState) -> KYCState:
 
 # Create the workflow
 def create_kyc_workflow() -> Graph:
-    workflow = Graph(state_store=STATE_STORE)
-
+    try:
+        workflow = Graph(state_store=STATE_STORE)
+    except Exception:
+        # Fallback to creating graph without explicit state store
+        workflow = Graph()
+    
     # Add nodes
     workflow.add_node("supervisor", supervisor_agent)
     workflow.add_node("document_analysis", document_analysis_agent)
