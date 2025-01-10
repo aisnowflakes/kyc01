@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "agent": ".kyc_workflow.py:graph"
+    },
+    "env": ".env"
+  }
+  
