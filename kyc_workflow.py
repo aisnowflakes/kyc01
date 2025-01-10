@@ -1,10 +1,15 @@
 from typing import Dict, List, TypedDict
 from langgraph.graph import Graph
 from openai import OpenAI
+from langgraph.store import LocalStateStore
+import os
 import json
 
 # Initialize OpenAI client
 client = OpenAI()
+
+# Add state store configuration
+STATE_STORE = LocalStateStore()
 
 # Hardcoded user database
 USER_DATABASE = {
@@ -109,7 +114,7 @@ def eligibility_agent(state: KYCState) -> KYCState:
 
 # Create the workflow
 def create_kyc_workflow() -> Graph:
-    workflow = Graph()
+    workflow = Graph(state_store=STATE_STORE)
 
     # Add nodes
     workflow.add_node("supervisor", supervisor_agent)
